@@ -13,6 +13,10 @@ func New(db *sql.DB) *GoSql {
 	if db == nil {
 		panic("db is a must")
 	}
+	err := db.Ping()
+	if err != nil {
+		panic(err)
+	}
 	return &GoSql{
 		db: db,
 	}
@@ -24,15 +28,12 @@ func (sqlDB *GoSql) Insert(sql string, parameters ...interface{}) (int64, error)
 	if err != nil || stmt == nil {
 		return 0, err
 	}
+	defer stmt.Close()
 	rs, err := stmt.Exec(parameters...)
 	if err != nil {
 		return 0, err
 	}
-	Id, err := rs.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-	return Id, nil
+	return rs.LastInsertId()
 }
 
 //Update
@@ -41,13 +42,26 @@ func (sqlDB *GoSql) Update(sql string, parameters ...interface{}) (int64, error)
 	if err != nil || stmt == nil {
 		return 0, err
 	}
+	defer stmt.Close()
 	rs, err := stmt.Exec(parameters...)
 	if err != nil {
 		return 0, err
 	}
-	affected, err := rs.RowsAffected()
+	return rs.RowsAffected()
+}
+
+//Delete
+func (sqlDB *GoSql) Delete(sql string, parameters ...interface{}) (int64, error) {
+	stmt, err := sqlDB.db.Prepare(sql)
+	if err != nil || stmt == nil {
+		return 0, err
+	}
+	defer stmt.Close()
+	rs, err := stmt.Exec(parameters...)
 	if err != nil {
 		return 0, err
 	}
-	return affected, nil
+	return rs.RowsAffected()
 }
+
+//Select
