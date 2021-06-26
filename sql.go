@@ -22,6 +22,13 @@ func New(db *sql.DB) *GoSql {
 	}
 }
 
+func (sqlDB *GoSql) Orm(entity interface{}) *dao {
+	return &dao{
+		entity: entity,
+	}
+}
+
+//--------------------------SQL--------------------------------------
 //Insert
 func (sqlDB *GoSql) Insert(sql string, parameters ...interface{}) (int64, error) {
 	stmt, err := sqlDB.db.Prepare(sql)
@@ -64,4 +71,11 @@ func (sqlDB *GoSql) Delete(sql string, parameters ...interface{}) (int64, error)
 	return rs.RowsAffected()
 }
 
-//Select
+//--------------------------SQL--------------------------------------
+
+//--------------------------NOSQL--------------------------------------
+type dao struct {
+	entity interface{} //tag->col
+}
+
+//--------------------------NOSQL--------------------------------------
