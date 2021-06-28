@@ -24,7 +24,7 @@ func New(db *sql.DB) *GoSql {
 	}
 }
 
-//--------------------------SQL--------------------------------------
+//--------------------------SQL--------------------------------------Start
 //Insert
 func (sqlDB *GoSql) Insert(sql string, parameters ...interface{}) (int64, error) {
 	stmt, err := sqlDB.db.Prepare(sql)
@@ -67,13 +67,14 @@ func (sqlDB *GoSql) Delete(sql string, parameters ...interface{}) (int64, error)
 	return rs.RowsAffected()
 }
 
-func (sqlDB *GoSql) TransactionFunc(fn func() error) (bool, error) {
-	tx, err := sqlDB.db.Begin()
-	if err != nil {
-		return false, err
+//Tx func
+func (sqlDB *GoSql) TransactionFunc(fn func(transaction *Transaction) error) (bool, error) {
+	tx := sqlDB.BeginTransaction()
+	if tx.err != nil {
+		return false, tx.err
 	}
 	defer tx.Rollback()
-	err = fn()
+	err := fn(tx)
 	if err != nil {
 		return false, err
 	}
@@ -85,26 +86,52 @@ func (sqlDB *GoSql) TransactionFunc(fn func() error) (bool, error) {
 }
 
 type query struct {
-	db        *sql.DB
-	sql       string
-	parameter []interface{}
-	data      []map[string]string
-	err       error
+	db          *sql.DB
+	sql         string
+	parameter   []interface{}
+	data        []map[string]string
+	err         error
+	transaction *Transaction
 }
 
+//Query
 func (sqlDB *GoSql) Query(sql string, parameter ...interface{}) *query {
 	query := &query{
-		db:        sqlDB.db,
-		sql:       sql,
-		parameter: parameter,
-		data:      nil,
-		err:       nil,
+		db:          sqlDB.db,
+		sql:         sql,
+		parameter:   parameter,
+		data:        nil,
+		err:         nil,
+		transaction: nil,
 	}
 	return query
 }
 
+func (q *query) getRows() (*sql.Rows, error) {
+	if q.db != nil {
+		rows, err := q.db.Query(q.sql, q.parameter...)
+		return rows, err
+	} else if q.transaction != nil {
+		rows, err := q.transaction.tx.Query(q.sql, q.parameter...)
+		return rows, err
+	}
+	return nil, nil
+}
+
+func (q *query) getRow() *sql.Row {
+	if q.db != nil {
+		row := q.db.QueryRow(q.sql, q.parameter...)
+		return row
+	} else if q.transaction != nil {
+		row := q.transaction.tx.QueryRow(q.sql, q.parameter...)
+		return row
+	}
+	return nil
+}
+
+//handle
 func (q *query) handleQuery() {
-	rows, err := q.db.Query(q.sql, q.parameter...)
+	rows, err := q.getRows()
 	if err != nil {
 		q.err = err
 		return
@@ -136,7 +163,11 @@ func (q *query) handleQuery() {
 	q.data = results
 }
 
+//one
 func (q *query) Unique(model interface{}) error {
+	if q.err != nil {
+		return q.err
+	}
 	q.handleQuery()
 	if q.err != nil {
 		return q.err
@@ -147,7 +178,11 @@ func (q *query) Unique(model interface{}) error {
 	return nil
 }
 
+//list
 func (q *query) ToList(list interface{}) error {
+	if q.err != nil {
+		return q.err
+	}
 	v := reflect.ValueOf(list)
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
@@ -180,19 +215,108 @@ func (q *query) ToList(list interface{}) error {
 	return nil
 }
 
+//Count
 func (q *query) Count(size *int) error {
 	if q.err != nil {
 		return q.err
 	}
-	err := q.db.QueryRow(q.sql, q.parameter...).Scan(size)
+	err := q.getRow().Scan(size)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-//--------------------------SQL--------------------------------------
+//--------------------------SQL--------------------------------------End
 
-//--------------------------NOSQL--------------------------------------
+//--------------------------Tx---------------------------------------Start
+//Tx
+type Transaction struct {
+	tx  *sql.Tx
+	err error
+}
 
-//--------------------------NOSQL--------------------------------------
+//Tx begin
+func (sqlDB *GoSql) BeginTransaction() *Transaction {
+	tx, err := sqlDB.db.Begin()
+	return &Transaction{
+		tx:  tx,
+		err: err,
+	}
+}
+
+//Insert
+func (transaction *Transaction) Insert(sql string, parameters ...interface{}) (int64, error) {
+	if transaction.err != nil {
+		return 0, transaction.err
+	}
+	stmt, err := transaction.tx.Prepare(sql)
+	if err != nil || stmt == nil {
+		return 0, err
+	}
+	defer stmt.Close()
+	rs, err := stmt.Exec(parameters...)
+	if err != nil {
+		return 0, err
+	}
+	return rs.LastInsertId()
+}
+
+//Update
+func (transaction *Transaction) Update(sql string, parameters ...interface{}) (int64, error) {
+	if transaction.err != nil {
+		return 0, transaction.err
+	}
+	stmt, err := transaction.tx.Prepare(sql)
+	if err != nil || stmt == nil {
+		return 0, err
+	}
+	defer stmt.Close()
+	rs, err := stmt.Exec(parameters...)
+	if err != nil {
+		return 0, err
+	}
+	return rs.RowsAffected()
+}
+
+//Delete
+func (transaction *Transaction) Delete(sql string, parameters ...interface{}) (int64, error) {
+	if transaction.err != nil {
+		return 0, transaction.err
+	}
+	stmt, err := transaction.tx.Prepare(sql)
+	if err != nil || stmt == nil {
+		return 0, err
+	}
+	defer stmt.Close()
+	rs, err := stmt.Exec(parameters...)
+	if err != nil {
+		return 0, err
+	}
+	return rs.RowsAffected()
+}
+
+//Tx Query
+func (transaction *Transaction) Query(sql string, parameter ...interface{}) *query {
+	query := &query{
+		db:          nil,
+		sql:         sql,
+		parameter:   parameter,
+		data:        nil,
+		err:         transaction.err,
+		transaction: transaction,
+	}
+	return query
+}
+
+//TX Commit
+func (transaction *Transaction) Commit() error {
+	return transaction.tx.Commit()
+}
+
+//Tx Rollback
+func (transaction *Transaction) Rollback() error {
+	return transaction.tx.Rollback()
+}
+
+//--------------------------Tx---------------------------------------End

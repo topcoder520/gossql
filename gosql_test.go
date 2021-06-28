@@ -4,8 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"testing"
-
-	_ "github.com/mattn/go-sqlite3"
+	//_ "github.com/mattn/go-sqlite3"
 )
 
 /* sql := "CREATE TABLE `userinfo` (
@@ -88,4 +87,17 @@ func TestCount(t *testing.T) {
 	} else {
 		fmt.Println(size)
 	}
+}
+
+func TestTx(t *testing.T) {
+	db, err := sql.Open("sqlite3", "./test.db")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	gosql := New(db)
+	gosql.TransactionFunc(func(tx *Transaction) error {
+		tx.Insert("INSERT INTO userinfo(username, departname, created) values(?,?,?)", "astaxie", "研发部门", "2012-12-09")
+		return nil
+	})
 }
