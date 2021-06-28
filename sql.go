@@ -25,14 +25,19 @@ func New(db *sql.DB) *GoSql {
 }
 
 //--------------------------SQL--------------------------------------Start
-//Insert
-func (sqlDB *GoSql) Insert(sql string, parameters ...interface{}) (int64, error) {
+func (sqlDB *GoSql) getResult(sql string, parameters ...interface{}) (sql.Result, error) {
 	stmt, err := sqlDB.db.Prepare(sql)
 	if err != nil || stmt == nil {
-		return 0, err
+		return nil, err
 	}
 	defer stmt.Close()
 	rs, err := stmt.Exec(parameters...)
+	return rs, err
+}
+
+//Insert
+func (sqlDB *GoSql) Insert(sql string, parameters ...interface{}) (int64, error) {
+	rs, err := sqlDB.getResult(sql, parameters...)
 	if err != nil {
 		return 0, err
 	}
@@ -41,12 +46,7 @@ func (sqlDB *GoSql) Insert(sql string, parameters ...interface{}) (int64, error)
 
 //Update
 func (sqlDB *GoSql) Update(sql string, parameters ...interface{}) (int64, error) {
-	stmt, err := sqlDB.db.Prepare(sql)
-	if err != nil || stmt == nil {
-		return 0, err
-	}
-	defer stmt.Close()
-	rs, err := stmt.Exec(parameters...)
+	rs, err := sqlDB.getResult(sql, parameters...)
 	if err != nil {
 		return 0, err
 	}
@@ -55,12 +55,7 @@ func (sqlDB *GoSql) Update(sql string, parameters ...interface{}) (int64, error)
 
 //Delete
 func (sqlDB *GoSql) Delete(sql string, parameters ...interface{}) (int64, error) {
-	stmt, err := sqlDB.db.Prepare(sql)
-	if err != nil || stmt == nil {
-		return 0, err
-	}
-	defer stmt.Close()
-	rs, err := stmt.Exec(parameters...)
+	rs, err := sqlDB.getResult(sql, parameters...)
 	if err != nil {
 		return 0, err
 	}
@@ -244,18 +239,22 @@ func (sqlDB *GoSql) BeginTransaction() *Transaction {
 		err: err,
 	}
 }
+func (transaction *Transaction) getResult(sql string, parameters ...interface{}) (sql.Result, error) {
+	stmt, err := transaction.tx.Prepare(sql)
+	if err != nil || stmt == nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	rs, err := stmt.Exec(parameters...)
+	return rs, err
+}
 
 //Insert
 func (transaction *Transaction) Insert(sql string, parameters ...interface{}) (int64, error) {
 	if transaction.err != nil {
 		return 0, transaction.err
 	}
-	stmt, err := transaction.tx.Prepare(sql)
-	if err != nil || stmt == nil {
-		return 0, err
-	}
-	defer stmt.Close()
-	rs, err := stmt.Exec(parameters...)
+	rs, err := transaction.getResult(sql, parameters...)
 	if err != nil {
 		return 0, err
 	}
@@ -267,12 +266,7 @@ func (transaction *Transaction) Update(sql string, parameters ...interface{}) (i
 	if transaction.err != nil {
 		return 0, transaction.err
 	}
-	stmt, err := transaction.tx.Prepare(sql)
-	if err != nil || stmt == nil {
-		return 0, err
-	}
-	defer stmt.Close()
-	rs, err := stmt.Exec(parameters...)
+	rs, err := transaction.getResult(sql, parameters...)
 	if err != nil {
 		return 0, err
 	}
@@ -284,12 +278,7 @@ func (transaction *Transaction) Delete(sql string, parameters ...interface{}) (i
 	if transaction.err != nil {
 		return 0, transaction.err
 	}
-	stmt, err := transaction.tx.Prepare(sql)
-	if err != nil || stmt == nil {
-		return 0, err
-	}
-	defer stmt.Close()
-	rs, err := stmt.Exec(parameters...)
+	rs, err := transaction.getResult(sql, parameters...)
 	if err != nil {
 		return 0, err
 	}
