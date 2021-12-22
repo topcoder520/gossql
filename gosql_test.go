@@ -4,9 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"testing"
-
 	//_ "github.com/mattn/go-sqlite3"
-	_ "github.com/denisenkom/go-mssqldb"
+	//_ "github.com/denisenkom/go-mssqldb"
 )
 
 /* sql := "CREATE TABLE `userinfo` (
@@ -107,11 +106,11 @@ func TestTx(t *testing.T) {
 func TestSql(t *testing.T) {
 	var isdebug = true
 
-	var server = "120.24.228.46"
+	var server = ""
 	var port = 1443
-	var database = "ComprehensivePlatformTest_Temp"
-	var user = "sa"
-	var password = "gz123,"
+	var database = ""
+	var user = ""
+	var password = ""
 
 	connString := fmt.Sprintf("server=%s;port%d;database=%s;user id=%s;password=%s", server, port, database, user, password)
 	if isdebug {
@@ -124,9 +123,6 @@ func TestSql(t *testing.T) {
 	}
 	fmt.Println(db.Ping())
 	gosql := New(db)
-	// count := 0
-	// fmt.Println(gosql.Query("select count(1) from Base_City").Count(&count))
-	// fmt.Println(count)
 	var nameList = make([]string, 100)
 	fmt.Println(gosql.Query("select Name from SysObjects where XType='U' order by Name").ToList(&nameList))
 	if len(nameList) > 0 {
