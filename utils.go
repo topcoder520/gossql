@@ -3,6 +3,7 @@ package gossql
 import (
 	"errors"
 	"reflect"
+	"sort"
 	"strconv"
 )
 
@@ -30,6 +31,34 @@ func Mapping(m map[string]string, v reflect.Value) error {
 		for _, v := range m {
 			val.SetString(v)
 		}
+	} else if val.Kind() == reflect.Slice {
+		length := len(m)
+		newv := reflect.MakeSlice(val.Type(), 0, length)
+		val.Set(newv)
+		val.SetLen(length)
+
+		keys := make([]string, 0, length)
+		for key := range m {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+
+		var index = 0
+		for _, Key := range keys {
+			value := m[Key]
+			k := val.Type().Elem()
+			newObj := reflect.New(k)
+			newObjVal := newObj.Elem()
+			if newObjVal.CanSet() {
+				newObjVal.SetString(value)
+				if newObjVal.Kind() == reflect.Ptr {
+					newObjVal = newObjVal.Elem()
+				}
+				val.Index(index).Set(newObjVal)
+			}
+			index++
+		}
+
 	} else {
 		for i := 0; i < val.NumField(); i++ {
 			value := val.Field(i)

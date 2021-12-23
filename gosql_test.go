@@ -4,8 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 	"testing"
+
 	//_ "github.com/mattn/go-sqlite3"
-	//_ "github.com/denisenkom/go-mssqldb"
+	_ "github.com/denisenkom/go-mssqldb"
 )
 
 /* sql := "CREATE TABLE `userinfo` (
@@ -107,7 +108,7 @@ func TestSql(t *testing.T) {
 	var isdebug = true
 
 	var server = ""
-	var port = 1443
+	var port = 0
 	var database = ""
 	var user = ""
 	var password = ""
@@ -123,11 +124,16 @@ func TestSql(t *testing.T) {
 	}
 	fmt.Println(db.Ping())
 	gosql := New(db)
-	var nameList = make([]string, 100)
-	fmt.Println(gosql.Query("select Name from SysObjects where XType='U' order by Name").ToList(&nameList))
+	//var nameList = make([]string, 0)
+	//fmt.Println(gosql.Query("select Name from SysObjects where XType='U' order by Name").ToList(&nameList))
+	var nameList = make([][]string, 0)
+	fmt.Println(gosql.Query("select * from SysObjects where XType='U' order by Name").ToList(&nameList))
 	if len(nameList) > 0 {
 		for _, v := range nameList {
-			fmt.Println(v)
+			vl := v[10:11]
+			for _, val := range vl {
+				fmt.Println(val)
+			}
 		}
 	}
 }
