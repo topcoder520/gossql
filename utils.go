@@ -17,7 +17,7 @@ func (t Tag) String() string {
 	return []string{"col"}[t]
 }
 
-func Mapping(m map[string]string, v reflect.Value) error {
+func Mapping(m map[string]string, v reflect.Value, sorted []string) error {
 	t := v.Type()
 	val := v.Elem()
 	typ := t.Elem()
@@ -36,15 +36,15 @@ func Mapping(m map[string]string, v reflect.Value) error {
 		newv := reflect.MakeSlice(val.Type(), 0, length)
 		val.Set(newv)
 		val.SetLen(length)
-
-		keys := make([]string, 0, length)
-		for key := range m {
-			keys = append(keys, key)
+		if sorted == nil {
+			sorted = make([]string, 0, length)
+			for key := range m {
+				sorted = append(sorted, key)
+			}
+			sort.Strings(sorted)
 		}
-		sort.Strings(keys)
-
 		var index = 0
-		for _, Key := range keys {
+		for _, Key := range sorted {
 			value := m[Key]
 			k := val.Type().Elem()
 			newObj := reflect.New(k)

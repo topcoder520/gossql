@@ -85,6 +85,7 @@ type query struct {
 	sql         string
 	parameter   []interface{}
 	data        []map[string]string
+	columns     []string
 	err         error
 	transaction *Transaction
 }
@@ -137,6 +138,7 @@ func (q *query) handleQuery() {
 		q.err = err
 		return
 	}
+	q.columns = column
 	values := make([][]byte, len(column)) //行
 	scans := make([]interface{}, len(column))
 	for i := range values {
@@ -168,7 +170,7 @@ func (q *query) Unique(model interface{}) error {
 		return q.err
 	}
 	if len(q.data) > 0 {
-		return Mapping(q.data[0], reflect.ValueOf(model))
+		return Mapping(q.data[0], reflect.ValueOf(model), nil)
 	}
 	return nil
 }
@@ -197,7 +199,7 @@ func (q *query) ToList(list interface{}) error {
 		for i := 0; i < length; i++ {
 			k := v.Type().Elem()
 			newObj := reflect.New(k)
-			err := Mapping(q.data[i], newObj)
+			err := Mapping(q.data[i], newObj, q.columns)
 			if err != nil {
 				return err
 			}
